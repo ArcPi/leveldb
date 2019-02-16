@@ -7,9 +7,9 @@
 namespace leveldb {
 
 void EncodeFixed32(char* buf, uint32_t value) {
-  if (port::kLittleEndian) {
+  if (port::kLittleEndian) { // 如果是小端序，直接在内存中拷贝过来即可
     memcpy(buf, &value, sizeof(value));
-  } else {
+  } else { // 如果是大端序，让其在内存中的排布满足小端序
     buf[0] = value & 0xff;
     buf[1] = (value >> 8) & 0xff;
     buf[2] = (value >> 16) & 0xff;
@@ -46,6 +46,7 @@ void PutFixed64(std::string* dst, uint64_t value) {
 
 char* EncodeVarint32(char* dst, uint32_t v) {
   // Operate on characters as unsigneds
+  // 转换成unsigned原因：超出部分自动截断，不需要(v | b)&0xff. char类型可能会给你搞什么精度转化什么的问题
   unsigned char* ptr = reinterpret_cast<unsigned char*>(dst);
   static const int B = 128;
   if (v < (1<<7)) {
@@ -78,6 +79,7 @@ void PutVarint32(std::string* dst, uint32_t v) {
   dst->append(buf, ptr - buf);
 }
 
+// 写法为什么和Varint32不一致，答：大牛为了让我们看懂32的，64如果也这么写太长了。
 char* EncodeVarint64(char* dst, uint64_t v) {
   static const int B = 128;
   unsigned char* ptr = reinterpret_cast<unsigned char*>(dst);

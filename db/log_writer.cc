@@ -12,6 +12,7 @@
 namespace leveldb {
 namespace log {
 
+// 初始化校验码
 static void InitTypeCrc(uint32_t* type_crc) {
   for (int i = 0; i <= kMaxRecordType; i++) {
     char t = static_cast<char>(i);
@@ -19,12 +20,14 @@ static void InitTypeCrc(uint32_t* type_crc) {
   }
 }
 
+// 初始化Writer
 Writer::Writer(WritableFile* dest)
     : dest_(dest),
       block_offset_(0) {
   InitTypeCrc(type_crc_);
 }
 
+// 初始化Writer
 Writer::Writer(WritableFile* dest, uint64_t dest_length)
     : dest_(dest), block_offset_(dest_length % kBlockSize) {
   InitTypeCrc(type_crc_);
@@ -43,12 +46,16 @@ Status Writer::AddRecord(const Slice& slice) {
   Status s;
   bool begin = true;
   do {
+	// leftover:查看还剩多少字节（剩下多少空间）
     const int leftover = kBlockSize - block_offset_;
+	// 断言这个数肯定是正数
     assert(leftover >= 0);
+	// 如果剩下的空间不够存储Header的七字节
     if (leftover < kHeaderSize) {
       // Switch to a new block
       if (leftover > 0) {
         // Fill the trailer (literal below relies on kHeaderSize being 7)
+		// 剩下的空间全都填上0
         assert(kHeaderSize == 7);
         dest_->Append(Slice("\x00\x00\x00\x00\x00\x00", leftover));
       }
@@ -56,8 +63,11 @@ Status Writer::AddRecord(const Slice& slice) {
     }
 
     // Invariant: we never leave < kHeaderSize bytes in a block.
+	// 经过上边的if语句，保证了kBlockSize >= block_offset_ + kHeaderSize
+	// 用断言保证这个条件
     assert(kBlockSize - block_offset_ - kHeaderSize >= 0);
 
+	// avail:还剩多少字节
     const size_t avail = kBlockSize - block_offset_ - kHeaderSize;
     const size_t fragment_length = (left < avail) ? left : avail;
 
@@ -81,14 +91,23 @@ Status Writer::AddRecord(const Slice& slice) {
   return s;
 }
 
+// 写入文件的时候，是以Record为单位。而不是以Block为单位。
+// 但是需要注意的是，有可能Record只是Slice的一部分。
+// 也就是说，写入的时候，有可能不是一个完整的Slice被写到了文件中。
 Status Writer::EmitPhysicalRecord(RecordType t, const char* ptr, size_t n) {
-  assert(n <= 0xffff);  // Must fit in two bytes
+  // 根据前面的代码 fragment_length = min(avail, left)
+  // 这里加上这个限制，应该是为了防止后面
+  // block_offset_ + kHeaderSize + n 溢出
+  assert(n <= 0xffff);  // Must fit in two bytes // n代表数据的长度，在Header中由两字节（16位）记录
   assert(block_offset_ + kHeaderSize + n <= kBlockSize);
 
   // Format the header
   char buf[kHeaderSize];
+  // 写入长度：先写低八位
   buf[4] = static_cast<char>(n & 0xff);
+  // 写入长度: 然后写高八位
   buf[5] = static_cast<char>(n >> 8);
+  // 写入类型: 也是八位
   buf[6] = static_cast<char>(t);
 
   // Compute the crc of the record type and the payload.

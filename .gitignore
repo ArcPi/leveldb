@@ -2,6 +2,8 @@
 *.sw*
 .vscode
 .DS_Store
+.vs
+.idea
 
 # Build directory.
 build/

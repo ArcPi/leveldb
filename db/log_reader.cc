@@ -33,15 +33,20 @@ Reader::~Reader() {
   delete[] backing_store_;
 }
 
+// 当需要读Slice的时候。不会每次都打开文件从头开始读。那么就需要给定一个开始读的位置，这个位置就叫做initial_offset_
 bool Reader::SkipToInitialBlock() {
+  // block块内的偏移
   const size_t offset_in_block = initial_offset_ % kBlockSize;
+  // initial_offset_- offset_in_block正好是32KB的整数倍
   uint64_t block_start_location = initial_offset_ - offset_in_block;
 
   // Don't search a block if we'd be in the trailer
+  // 尾巴 跳到下一个block
   if (offset_in_block > kBlockSize - 6) {
     block_start_location += kBlockSize;
   }
 
+  // 注意end_of_buffer_offset_的设置是块的开始地址
   end_of_buffer_offset_ = block_start_location;
 
   // Skip to start of first block that can contain the initial record
@@ -68,6 +73,7 @@ bool Reader::ReadRecord(Slice* record, std::string* scratch) {
   bool in_fragmented_record = false;
   // Record offset of the logical record that we're reading
   // 0 is a dummy value to make compilers happy
+  // 记录逻辑record
   uint64_t prospective_record_offset = 0;
 
   Slice fragment;

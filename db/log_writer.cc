@@ -116,10 +116,13 @@ Status Writer::EmitPhysicalRecord(RecordType t, const char* ptr, size_t n) {
   EncodeFixed32(buf, crc);
 
   // Write the header and the payload
+  // 写Header校验
   Status s = dest_->Append(Slice(buf, kHeaderSize));
   if (s.ok()) {
+	// 写数据
     s = dest_->Append(Slice(ptr, n));
     if (s.ok()) {
+	  // 刷新
       s = dest_->Flush();
     }
   }

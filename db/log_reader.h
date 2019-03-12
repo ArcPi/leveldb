@@ -20,6 +20,7 @@ namespace log {
 class Reader {
  public:
   // Interface for reporting errors.
+  // 用于报告错误的接口
   class Reporter {
    public:
     virtual ~Reporter();
